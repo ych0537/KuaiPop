@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>ja</string>
+	<key>CFBundleExecutable</key>
+	<string>KuaiPop</string>
+	<key>CFBundleIdentifier</key>
+	<string>com.kuaipop.app</string>
+	<key>CFBundleIconFile</key>
+	<string>AppIcon</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundleName</key>
+	<string>KuaiPop</string>
+	<key>CFBundleDisplayName</key>
+	<string>KuaiPop</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>0.1.0</string>
+	<key>CFBundleVersion</key>
+	<string>1</string>
+	<key>LSMinimumSystemVersion</key>
+	<string>13.0</string>
+	<key>LSUIElement</key>
+	<true/>
+	<key>NSHighResolutionCapable</key>
+	<true/>
+	<key>NSAppleEventsUsageDescription</key>
+	<string>ブラウザで選択した内容を ToDo にするとき、出典としてページのタイトルと URL を取得します。</string>
+	<key>NSRemindersUsageDescription</key>
+	<string>ToDo を macOS「リマインダー」にも保存します。</string>
+	<key>NSRemindersFullAccessUsageDescription</key>
+	<string>ToDo を macOS「リマインダー」にも保存します。</string>
+	<key>NSServices</key>
+	<array>
+		<dict>
+			<key>NSMenuItem</key>
+			<dict><key>default</key><string>KuaiPop：翻訳</string></dict>
+			<key>NSMessage</key>
+			<string>translateService</string>
+			<key>NSPortName</key>
+			<string>KuaiPop</string>
+			<key>NSSendTypes</key>
+			<array><string>NSStringPboardType</string><string>public.utf8-plain-text</string></array>
+			<key>NSRequiredContext</key>
+			<dict/>
+		</dict>
+		<dict>
+			<key>NSMenuItem</key>
+			<dict><key>default</key><string>KuaiPop：推敲</string></dict>
+			<key>NSMessage</key>
+			<string>polishService</string>
+			<key>NSPortName</key>
+			<string>KuaiPop</string>
+			<key>NSSendTypes</key>
+			<array><string>NSStringPboardType</string><string>public.utf8-plain-text</string></array>
+			<key>NSRequiredContext</key>
+			<dict/>
+		</dict>
+		<dict>
+			<key>NSMenuItem</key>
+			<dict><key>default</key><string>KuaiPop：ToDo に追加</string></dict>
+			<key>NSMessage</key>
+			<string>todoService</string>
+			<key>NSPortName</key>
+			<string>KuaiPop</string>
+			<key>NSSendTypes</key>
+			<array><string>NSStringPboardType</string><string>public.utf8-plain-text</string></array>
+			<key>NSRequiredContext</key>
+			<dict/>
+		</dict>
+	</array>
+</dict>
+</plist>
