@@ -111,6 +111,8 @@ enum Strings {
         "ショートカット（⌥Space）を押したときだけ表示": ("仅在按下快捷键（⌥Space）时显示", "Show only when pressing the shortcut (⌥Space)"),
         "自動表示が邪魔なアプリ向け": ("适合自动弹出会打扰的场景", "For when automatic popups get in the way"),
         "右クリックメニューの「サービス」からのみ": ("仅通过右键菜单「服务」", "Only from the right-click Services menu"),
+        "⌘C を 2 回押してもバーを表示": ("连按两次 ⌘C 也显示图标条", "Also show the bar when ⌘C is pressed twice"),
+        "テキストを選んで ⌘C をすばやく 2 回押すと、マウスの位置にバーを表示します。アクセシビリティの権限がなくても使えます。": ("选中文字后快速按两次 ⌘C，会在鼠标位置显示图标条。没有辅助功能权限也能使用。", "Select text and quickly press ⌘C twice to show the bar at the mouse. Works without the Accessibility permission."),
         "ショートカット": ("快捷键", "Shortcuts"),
         "フローティングバーを表示": ("显示浮动图标条", "Show floating bar"),
         "すぐに翻訳": ("直接翻译", "Translate immediately"),
@@ -129,6 +131,7 @@ enum Strings {
         "ログイン時に起動": ("登录时启动", "Launch at login"),
         "「アクセシビリティ」の権限あり。他のアプリで選択したテキストを読み取り・置き換えできます": ("已获得「辅助功能」权限，可以读取和替换其他应用中选中的文字", "Accessibility permission granted. Selected text in other apps can be read and replaced"),
         "「アクセシビリティ」の権限がありません。選択テキストを読み取れません": ("没有「辅助功能」权限，无法读取选中的文字", "No Accessibility permission. Selected text can’t be read"),
+        "「アクセシビリティ」の権限がありません。⌘C を 2 回押すとバーを表示できます": ("没有「辅助功能」权限。可以连按两次 ⌘C 显示图标条", "No Accessibility permission. Press ⌘C twice to show the bar"),
         "システム設定…": ("系统设置…", "System Settings…"),
 
         // MARK: Translate page
@@ -184,6 +187,7 @@ enum Strings {
         "システム設定を開く": ("打开系统设置", "Open System Settings"),
         "許可を求める": ("请求权限", "Request access"),
         "選択テキストと位置の取得、Esc の検知、置き換え（⌘V の送信）に使います。アプリを再ビルドした場合は、一覧から KuaiPop を削除して追加し直してください。": ("用于获取选中文字及位置、检测 Esc、替换（发送 ⌘V）。重新编译应用后，请从列表中删除 KuaiPop 再重新添加。", "Used to read the selection and its position, detect Esc, and replace text (sending ⌘V). After rebuilding the app, remove KuaiPop from the list and add it again."),
+        "権限がなくても、テキストを選んで ⌘C を 2 回押せばバーを表示できます（会社の Mac など）。その場合、バーはマウスの位置に表示され、「置き換え」の代わりに「コピー」を使います。": ("即使没有权限，选中文字后连按两次 ⌘C 也能显示图标条（例如公司电脑）。此时图标条显示在鼠标位置，用「复制」代替「替换」。", "Even without the permission, select text and press ⌘C twice to show the bar (e.g. on a work Mac). The bar then appears at the mouse, and Copy is used instead of Replace."),
         "オートメーション（任意）": ("自动化（可选）", "Automation (optional)"),
         "ブラウザで選択した内容を ToDo にするとき、Safari / Chrome / Edge / Arc などにページのタイトルと URL を問い合わせます。初回に許可を求めます。": ("把浏览器中选中的内容加入 ToDo 时，会向 Safari / Chrome / Edge / Arc 等获取页面标题和 URL。首次会请求许可。", "When adding a ToDo from a browser, KuaiPop asks Safari / Chrome / Edge / Arc for the page title and URL. You’ll be asked once."),
         "リマインダー（任意）": ("提醒事项（可选）", "Reminders (optional)"),

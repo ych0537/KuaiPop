@@ -74,11 +74,14 @@ enum AppleOnDevice {
 /// - Apple:        FoundationModels (on-device)
 enum AIClient {
     static func chat(system: String, user: String) async throws -> String {
-        if Prefs.aiProvider == .apple {
+        if Prefs.aiProvider == .apple || BuildVariant.localOnly {
             let r = try await AppleOnDevice.respond(system: system, user: user)
             guard !r.isEmpty else { throw AIError(message: L("空の応答が返されました")) }
             return r
         }
+        #if LOCAL_ONLY
+        throw AIError(message: L("内部エラー"))
+        #else
         let request = try makeRequest(system: system, user: user)
         let (data, response) = try await URLSession.shared.data(for: request)
         guard let http = response as? HTTPURLResponse else {
@@ -104,6 +107,7 @@ enum AIClient {
             .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         guard !content.isEmpty else { throw AIError(message: L("空の応答が返されました")) }
         return stripThinking(content)
+        #endif
     }
 
     private static func errorMessage(from data: Data) -> String {

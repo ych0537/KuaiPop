@@ -5,6 +5,17 @@ enum TriggerMode: String, CaseIterable, Identifiable {
     var id: String { rawValue }
 }
 
+/// Compile-time build variant.
+/// `KuaiPop Local` is built with `-DLOCAL_ONLY`: only the on-device Apple Intelligence model
+/// is available and no network AI code path is compiled in (for company Macs).
+enum BuildVariant {
+    #if LOCAL_ONLY
+    static let localOnly = true
+    #else
+    static let localOnly = false
+    #endif
+}
+
 enum AIProvider: String, CaseIterable, Identifiable {
     case apple, azure, deepseek, local, openai
     var id: String { rawValue }
@@ -17,6 +28,9 @@ enum AIProvider: String, CaseIterable, Identifiable {
         case .openai: return L("OpenAI / その他の OpenAI 互換 API")
         }
     }
+    /// Providers offered in this build.
+    static var available: [AIProvider] { BuildVariant.localOnly ? [.apple] : allCases }
+
     /// Keychain account name for this provider's API key.
     var keychainAccount: String { rawValue }
 }
@@ -61,6 +75,7 @@ enum PrefKey {
     static let uiLanguage = "uiLanguage"
     static let theme = "theme"
     static let clipboardFallback = "clipboardFallback"
+    static let doubleCopy = "doubleCopy"
     static let excludedApps = "excludedApps"
     static let searchMode = "searchMode"
     static let searchURL = "searchURL"
@@ -96,6 +111,7 @@ enum Prefs {
             PrefKey.uiLanguage: AppLanguage.system.rawValue,
             PrefKey.theme: ThemePalette.blue.rawValue,
             PrefKey.clipboardFallback: true,
+            PrefKey.doubleCopy: true,
             PrefKey.excludedApps: defaultExcluded,
             PrefKey.searchMode: SearchMode.teams.rawValue,
             PrefKey.searchURL: defaultSearchURL,
@@ -123,6 +139,7 @@ enum Prefs {
 
     static var triggerMode: TriggerMode { TriggerMode(rawValue: str(PrefKey.triggerMode)) ?? .auto }
     static var clipboardFallback: Bool { d.bool(forKey: PrefKey.clipboardFallback) }
+    static var doubleCopy: Bool { d.bool(forKey: PrefKey.doubleCopy) }
     static var excludedBundleIDs: Set<String> {
         let parts = str(PrefKey.excludedApps).components(separatedBy: CharacterSet(charactersIn: ",\n "))
         return Set(parts.map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty })
@@ -133,7 +150,10 @@ enum Prefs {
     static var translateFallback: String { str(PrefKey.translateFallback).isEmpty ? "日本語" : str(PrefKey.translateFallback) }
     static var polishTone: PolishTone { PolishTone(rawValue: str(PrefKey.polishTone)) ?? .internalTone }
     static var todoDestination: TodoDestination { TodoDestination(rawValue: str(PrefKey.todoDestination)) ?? .app }
-    static var aiProvider: AIProvider { AIProvider(rawValue: str(PrefKey.aiProvider)) ?? .apple }
+    static var aiProvider: AIProvider {
+        if BuildVariant.localOnly { return .apple }
+        return AIProvider(rawValue: str(PrefKey.aiProvider)) ?? .apple
+    }
     static var azureEndpoint: String { str(PrefKey.azureEndpoint) }
     static var azureDeployment: String { str(PrefKey.azureDeployment) }
     static var azureAPIVersion: String { str(PrefKey.azureAPIVersion).isEmpty ? defaultAzureAPIVersion : str(PrefKey.azureAPIVersion) }

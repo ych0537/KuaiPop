@@ -67,3 +67,4 @@ build/
 .vscode/
 .DS_Store
 scripts/release.env
+.build-local/

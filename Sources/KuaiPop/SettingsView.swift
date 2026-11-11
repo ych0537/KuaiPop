@@ -181,6 +181,7 @@ struct StatusBanner: View {
 struct GeneralPage: View {
     @AppStorage(PrefKey.triggerMode) private var trigger = TriggerMode.auto.rawValue
     @AppStorage(PrefKey.clipboardFallback) private var clipboardFallback = true
+    @AppStorage(PrefKey.doubleCopy) private var doubleCopy = true
     @AppStorage(PrefKey.excludedApps) private var excluded = Prefs.defaultExcluded
     @AppStorage(PrefKey.searchMode) private var searchMode = SearchMode.teams.rawValue
     @AppStorage(PrefKey.searchURL) private var searchURL = Prefs.defaultSearchURL
@@ -197,6 +198,12 @@ struct GeneralPage: View {
                          selected: trigger == TriggerMode.hotkey.rawValue) { trigger = TriggerMode.hotkey.rawValue }
                 RadioRow(title: L("右クリックメニューの「サービス」からのみ"),
                          selected: trigger == TriggerMode.services.rawValue) { trigger = TriggerMode.services.rawValue }
+            }
+
+            VStack(alignment: .leading, spacing: 8) {
+                Toggle(L("⌘C を 2 回押してもバーを表示"), isOn: $doubleCopy)
+                    .padding(.top, 4)
+                Hint(L("テキストを選んで ⌘C をすばやく 2 回押すと、マウスの位置にバーを表示します。アクセシビリティの権限がなくても使えます。"))
             }
 
             VStack(alignment: .leading, spacing: 8) {
@@ -258,7 +265,7 @@ struct GeneralPage: View {
                 ok: trusted,
                 text: trusted
                     ? L("「アクセシビリティ」の権限あり。他のアプリで選択したテキストを読み取り・置き換えできます")
-                    : L("「アクセシビリティ」の権限がありません。選択テキストを読み取れません"),
+                    : L("「アクセシビリティ」の権限がありません。⌘C を 2 回押すとバーを表示できます"),
                 actionTitle: L("システム設定…"),
                 action: { AX.openSystemSettings() })
         }
@@ -474,13 +481,15 @@ struct AIPage: View {
     @State private var testResult: (ok: Bool, text: String)?
     @State private var localModels: [String] = []
 
-    private var current: AIProvider { AIProvider(rawValue: provider) ?? .apple }
+    private var current: AIProvider {
+        BuildVariant.localOnly ? .apple : (AIProvider(rawValue: provider) ?? .apple)
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
             VStack(alignment: .leading, spacing: 8) {
                 SectionTitle(L("プロバイダー"))
-                ForEach(AIProvider.allCases) { p in
+                ForEach(AIProvider.available) { p in
                     RadioRow(title: p.label, selected: current == p) {
                         provider = p.rawValue
                         testResult = nil
@@ -655,6 +664,7 @@ struct AccessPage: View {
                              action: { AX.openSystemSettings() })
                 if !trusted {
                     Button(L("許可を求める")) { AX.prompt() }
+                    Hint(L("権限がなくても、テキストを選んで ⌘C を 2 回押せばバーを表示できます（会社の Mac など）。その場合、バーはマウスの位置に表示され、「置き換え」の代わりに「コピー」を使います。"))
                 }
                 Hint(L("選択テキストと位置の取得、Esc の検知、置き換え（⌘V の送信）に使います。アプリを再ビルドした場合は、一覧から KuaiPop を削除して追加し直してください。"))
             }

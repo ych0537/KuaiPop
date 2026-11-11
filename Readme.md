@@ -40,12 +40,25 @@
 
 ## インストール
 
-1. [Releases](https://github.com/ych0537/KuaiPop/releases/latest) から `KuaiPop-<バージョン>.dmg` をダウンロード
-2. DMG を開き、**KuaiPop** を「アプリケーション」フォルダへドラッグ
+### 2 つのバージョン
+
+| バージョン | AI | おすすめの環境 |
+| --- | --- | --- |
+| **KuaiPop** | Mac 本体の AI / Azure OpenAI / DeepSeek / ローカルモデル / OpenAI 互換 | 自分の Mac |
+| **KuaiPop Local** | **Mac 本体の AI（Apple Intelligence）のみ**。外部の AI サービスへの通信機能を持ちません | 会社の Mac（テキストを Mac の外に出せない環境） |
+
+KuaiPop Local は macOS 26 以降・Apple Intelligence 対応 Mac が必要です。2 つは別アプリとして扱われるため、同じ Mac に並べてインストールできます（設定も別々）。
+
+### 手順
+
+1. [Releases](https://github.com/ych0537/KuaiPop/releases/latest) から次のどちらかをダウンロード
+   - **`KuaiPop-<バージョン>.zip`** / **`KuaiPop-Local-<バージョン>.zip`**（おすすめ・管理者権限なし）— ダブルクリックで展開し、`KuaiPop.app` を Finder で好きなフォルダ（「書類」など）へ移動
+   - `KuaiPop-<バージョン>.dmg` / `KuaiPop-Local-<バージョン>.dmg` — DMG を開き、KuaiPop を「アプリケーション」フォルダへドラッグ（管理者権限が必要な場合があります）
+2. 「ダウンロード」フォルダから直接起動せず、一度 Finder で別のフォルダへ移動してから開くと、「サービス」メニューやログイン時の起動が正しく動作します
 3. KuaiPop を起動し、下記の[アクセシビリティ](#必要な権限)を許可
 4. メニューバーのアイコンを右クリック › **設定…** › **AI モデル** で AI を選び、「接続テスト」で確認
 
-> DMG は Apple の Developer ID で署名・公証（Notarization）済みです。そのまま開けます。
+> ZIP・DMG とも Apple の Developer ID で署名・公証（Notarization）済みです。そのまま開けます。
 
 **動作環境**
 
@@ -56,21 +69,33 @@
 
 ## 必要な権限
 
-KuaiPop は、選択テキストの読み取りなどのために次の権限を使います。**必須はアクセシビリティだけ**です。
+KuaiPop は次の権限を使います。**すべて任意**で、権限がなくても ⌘C ×2 と「サービス」メニューで主な機能（翻訳・推敲・ToDo）を使えます。
 
 | 権限 | 必須 | 用途 | 設定場所 |
 | --- | :---: | --- | --- |
-| **アクセシビリティ** | ✅ | ほかのアプリで選択したテキストとその位置の取得、Esc キーの検知、「置き換え」時の ⌘V の送信 | システム設定 › プライバシーとセキュリティ › アクセシビリティ |
+| **アクセシビリティ** | 自動表示に必要 | ほかのアプリで選択したテキストとその位置の取得、Esc キーの検知、「置き換え」時の ⌘V の送信 | システム設定 › プライバシーとセキュリティ › アクセシビリティ |
 | オートメーション | 任意 | ブラウザ（Safari / Chrome / Edge / Arc / Brave など）から ToDo を作るとき、ページのタイトルと URL を取得 | 初回に確認ダイアログが表示されます（システム設定 › プライバシーとセキュリティ › オートメーション） |
 | リマインダー | 任意 | ToDo の保存先に「リマインダー」を選んだときだけ使用 | 初回に確認ダイアログが表示されます |
 | ネットワーク | — | 選んだ AI プロバイダーへの通信のみ。Mac 本体の AI / ローカルモデルでは外部に送信しません | 許可は不要 |
 | キーチェーン | — | API キーの保存 | 許可は不要（再ビルド後は確認ダイアログが出ることがあります） |
 | ログイン項目 | 任意 | 設定の「ログイン時に起動」をオンにしたとき | システム設定 › 一般 › ログイン項目 |
 
+> **権限を付与できない場合**（会社の Mac など）
+> アクセシビリティなしでも、テキストを選んで **⌘C を 2 回** 押せばバーを表示できます。右クリックの「サービス」メニューも使えます。
+
 > **アクセシビリティが反映されないとき**
 > アプリを入れ直した・再ビルドした場合は、一覧から KuaiPop を **−** で削除し、もう一度 **＋** で追加してください。
 
 ## 使い方
+
+### バーの出し方は 2 通り
+
+| 方法 | アクセシビリティ権限 | バーの位置 | 置き換え |
+| --- | :---: | --- | :---: |
+| **テキストを選択すると自動で表示**（自分の Mac 向け） | 必要 | 選択したテキストのすぐ下 | ◯ |
+| **テキストを選んで ⌘C を 2 回すばやく押す**（会社の Mac など権限を付与できない環境向け） | **不要** | マウスの位置 | コピーで代用 |
+
+⌘C ×2 はクリップボードの変化だけを見て判定するため、キー入力の監視や特別な権限は使いません。どちらも同時に有効にでき、⌘C ×2 は 設定 › 一般とショートカット でオン／オフできます。
 
 ### ショートカット（システム全体）
 
@@ -129,7 +154,8 @@ API キーは macOS のキーチェーンに保存され、設定ファイルに
 ```bash
 git clone https://github.com/ych0537/KuaiPop.git
 cd KuaiPop
-./scripts/build-app.sh --install   # ビルド → /Applications にコピー → 起動
+./scripts/build-app.sh --install                 # KuaiPop をビルド → /Applications にコピー → 起動
+VARIANT=local ./scripts/build-app.sh --install   # KuaiPop Local（Mac 本体の AI のみ）
 ```
 
 - スクリプトは `/Applications/Xcode.app` のツールチェーンを自動で使います（Command Line Tools だけでは SwiftUI のマクロが見つからずビルドに失敗します）。
@@ -165,11 +191,11 @@ SIGN_IDENTITY="Developer ID Application" ./scripts/build-app.sh --install
 **作成**
 
 ```bash
-./scripts/release.sh            # 署名（Hardened Runtime）→ DMG 作成 → 公証 → staple → Gatekeeper 確認
+./scripts/release.sh            # 署名（Hardened Runtime）→ DMG 作成 → 公証 → staple → ZIP 作成 → Gatekeeper 確認
 ./scripts/release.sh --install  # 上記に加えて /Applications にインストール
 ```
 
-`build/KuaiPop-<バージョン>.dmg` が作成されます。バージョンは `Resources/Info.plist` の `CFBundleShortVersionString` です。
+両方のバージョンについて `build/KuaiPop-<バージョン>.dmg / .zip` と `build/KuaiPop-Local-<バージョン>.dmg / .zip` が作成されます。片方だけ作る場合は `VARIANTS=full` または `VARIANTS=local` を指定します。バージョンは `Resources/Info.plist` の `CFBundleShortVersionString` です。
 **チーム ID の指定**（必須）— 環境変数 `TEAM_ID` か、Git 管理外の `scripts/release.env` に書きます。
 
 ```bash

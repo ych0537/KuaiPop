@@ -42,6 +42,15 @@ enum ClipboardBridge {
     /// Tells clipboard managers (nspasteboard.org convention) to ignore our temporary content.
     private static let transient = NSPasteboard.PasteboardType("org.nspasteboard.TransientType")
 
+    /// Clipboard changes made by KuaiPop itself are ignored by DoubleCopyTrigger until this time.
+    private static var suppressUntil = Date.distantPast
+    private static func suppress(_ seconds: TimeInterval = 0.8) {
+        let t = Date().addingTimeInterval(seconds)
+        if t > suppressUntil { suppressUntil = t }
+    }
+    /// True while KuaiPop is (or was just) writing to the clipboard.
+    static func isOwnChange(_ changeCount: Int) -> Bool { Date() < suppressUntil }
+
     static func snapshot() -> Snapshot {
         (NSPasteboard.general.pasteboardItems ?? []).map { item in
             var dict: [NSPasteboard.PasteboardType: Data] = [:]
@@ -53,6 +62,7 @@ enum ClipboardBridge {
     }
 
     static func restore(_ snap: Snapshot) {
+        suppress()
         let pb = NSPasteboard.general
         pb.clearContents()
         let items: [NSPasteboardItem] = snap.map { dict in
@@ -68,6 +78,7 @@ enum ClipboardBridge {
         let pb = NSPasteboard.general
         let snap = snapshot()
         let before = pb.changeCount
+        suppress(1.5)
         KeySender.press(KeyCode.c, flags: .maskCommand)
         var changed = false
         for _ in 0..<12 {
@@ -83,6 +94,7 @@ enum ClipboardBridge {
     }
 
     static func setString(_ text: String) {
+        suppress()
         let pb = NSPasteboard.general
         pb.clearContents()
         pb.setString(text, forType: .string)
@@ -90,6 +102,7 @@ enum ClipboardBridge {
 
     /// Pastes text into the frontmost app (replacing its selection) and restores the clipboard.
     static func paste(_ text: String) async {
+        suppress(1.5)
         let snap = snapshot()
         let pb = NSPasteboard.general
         pb.clearContents()

@@ -9,6 +9,7 @@ final class AppController: NSObject {
     let store = TodoStore()
     private let overlay = OverlayController()
     private let monitor = SelectionMonitor()
+    private let doubleCopy = DoubleCopyTrigger()
     private let services = ServiceProvider()
     private let settingsNav = SettingsNav()
 
@@ -38,6 +39,9 @@ final class AppController: NSObject {
         }
         monitor.start()
 
+        // ⌘C ×2 → floating bar. Uses only the clipboard, so it works without Accessibility.
+        doubleCopy.onTrigger = { [weak self] text in self?.showBarForCopiedText(text) }
+
         NSWorkspace.shared.notificationCenter.addObserver(
             forName: NSWorkspace.didActivateApplicationNotification, object: nil, queue: .main
         ) { [weak self] note in
@@ -63,8 +67,11 @@ final class AppController: NSObject {
             Task { @MainActor in self?.checkTrust() }
         }
 
-        if !AX.isTrusted {
-            AX.prompt()
+        // Don't nag for Accessibility: without it, ⌘C ×2 and the Services menu still work
+        // (e.g. on a company Mac). Show the permissions page only on the very first launch.
+        let firstLaunchKey = "didShowWelcome"
+        if !AX.isTrusted && !UserDefaults.standard.bool(forKey: firstLaunchKey) {
+            UserDefaults.standard.set(true, forKey: firstLaunchKey)
             openSettings(page: .access)
         } else if !AIConfig.isConfigured {
             openSettings(page: .ai)
@@ -83,6 +90,7 @@ final class AppController: NSObject {
     }
 
     private func applyPrefs() {
+        if Prefs.doubleCopy { doubleCopy.start() } else { doubleCopy.stop() }
         settingsWindow?.title = L("選択アシスト 設定")
         statusItem?.button?.toolTip = L("選択アシスト（KuaiPop）")
         let mode = Prefs.triggerMode
@@ -292,6 +300,27 @@ final class AppController: NSObject {
     }
 
     // MARK: Hotkeys
+
+    /// Double ⌘C: show the bar for the copied text. With Accessibility granted we also try to
+    /// locate the selection (bar under the text, 置き換え enabled); otherwise the bar opens at the mouse.
+    private func showBarForCopiedText(_ text: String) {
+        Task { @MainActor in
+            var ctx: SelectionContext?
+            if AX.isTrusted, let sel = await SelectionReader.read(allowClipboard: false),
+               sel.text.trimmingCharacters(in: .whitespacesAndNewlines) == text.trimmingCharacters(in: .whitespacesAndNewlines) {
+                ctx = sel
+            }
+            if ctx == nil {
+                let app = NSWorkspace.shared.frontmostApplication
+                ctx = SelectionContext(
+                    text: text, anchor: nil, element: nil, isEditable: false,
+                    pid: app?.processIdentifier ?? 0, appName: app?.localizedName,
+                    bundleID: app?.bundleIdentifier, windowTitle: nil, mouse: NSEvent.mouseLocation)
+            }
+            guard let ctx else { return }
+            overlay.showBar(for: ctx)
+        }
+    }
 
     private func hotkeyShowBar() {
         Task { @MainActor in
