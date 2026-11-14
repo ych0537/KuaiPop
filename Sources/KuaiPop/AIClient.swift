@@ -130,6 +130,7 @@ enum AIClient {
         return s
     }
 
+    #if !LOCAL_ONLY
     static func makeRequest(system: String, user: String) throws -> URLRequest {
         let messages: [[String: String]] = [
             ["role": "system", "content": system],
@@ -196,4 +197,5 @@ enum AIClient {
         req.httpBody = try JSONSerialization.data(withJSONObject: body)
         return req
     }
+    #endif
 }

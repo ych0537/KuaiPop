@@ -52,6 +52,8 @@ echo "==> assembling $APP"
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$BIN_DIR/KuaiPop" "$APP/Contents/MacOS/KuaiPop"
+# Remove debug/local symbols: they embed absolute build paths (/Users/<name>/…) in the binary.
+strip -S -x "$APP/Contents/MacOS/KuaiPop"
 PLIST="$APP/Contents/Info.plist"
 cp Resources/Info.plist "$PLIST"
 if [[ -f Resources/AppIcon.icns ]]; then

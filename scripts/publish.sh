@@ -1,6 +1,7 @@
 #!/bin/bash
 # One command: build + notarize both variants, commit, push, tag and publish the GitHub Release.
 #   ./scripts/publish.sh
+#   COMMIT_MSG="v0.3.1: …" ./scripts/publish.sh    # custom commit subject (default: the tag)
 # Needs: gh (logged in), scripts/release.env, build/release-notes-<version>.md
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -27,9 +28,8 @@ done
 echo "==> 2/4 commit and push ($BRANCH)"
 git add -A
 if ! git diff --cached --quiet; then
-  git commit -m "$TAG: Teams メッセージへのリンク、検索先の自動切り替え、ToDo 表示の簡素化" \
-    -m "Co-Authored-By: Claude Fable 5.2 <noreply@anthropic.com>
-Claude-Session: https://claude.ai/code/session_01DU1X8dCfjKYeHz9bKLfX1o"
+  git commit -m "${COMMIT_MSG:-$TAG}" \
+    -m "Co-Authored-By: Claude Fable 5.2 <noreply@anthropic.com>"
 fi
 git push origin "$BRANCH"
 
