@@ -71,7 +71,7 @@ struct BarView: View {
     var body: some View {
         HStack(spacing: 4) {
             BarButton(symbol: "magnifyingglass",
-                      label: Prefs.searchMode == .teams ? L("選択したキーワードを Teams で検索") : L("選択したキーワードを Web で検索")) {
+                      label: L("選択したキーワードを検索（Teams・WeChat はアプリ内、その他は Google）")) {
                 onAction(.search)
             }
             BarButton(symbol: "translate", label: L("翻訳（日本語・英語 → %@）", Prefs.translateTarget)) { onAction(.translate) }

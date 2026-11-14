@@ -41,6 +41,9 @@ final class AppController: NSObject {
 
         // ⌘C ×2 → floating bar. Uses only the clipboard, so it works without Accessibility.
         doubleCopy.onTrigger = { [weak self] text in self?.showBarForCopiedText(text) }
+        // Teams「リンクをコピー」right after adding a Teams ToDo → attach the message link.
+        doubleCopy.onCopy = { [weak self] text in self?.store.attachCopiedTeamsLink(text) }
+        doubleCopy.start()
 
         NSWorkspace.shared.notificationCenter.addObserver(
             forName: NSWorkspace.didActivateApplicationNotification, object: nil, queue: .main
@@ -90,7 +93,7 @@ final class AppController: NSObject {
     }
 
     private func applyPrefs() {
-        if Prefs.doubleCopy { doubleCopy.start() } else { doubleCopy.stop() }
+        doubleCopy.doubleCopyEnabled = Prefs.doubleCopy
         settingsWindow?.title = L("選択アシスト 設定")
         statusItem?.button?.toolTip = L("選択アシスト（KuaiPop）")
         let mode = Prefs.triggerMode
@@ -204,7 +207,9 @@ final class AppController: NSObject {
     }
 
     private func openSource(_ item: TodoItem) {
-        if let u = item.url, let url = URL(string: u) {
+        if let link = item.messageLink {
+            TeamsLink.open(link)
+        } else if let u = item.url, let url = URL(string: u) {
             NSWorkspace.shared.open(url)
         } else if let bid = item.bundleID, let appURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bid) {
             NSWorkspace.shared.openApplication(at: appURL, configuration: NSWorkspace.OpenConfiguration())
@@ -217,7 +222,7 @@ final class AppController: NSObject {
         switch action {
         case .search:
             overlay.hideAll()
-            Searcher.search(ctx.text)
+            Searcher.search(ctx.text, source: ctx.bundleID)
         case .translate:
             runTranslate(ctx)
         case .polish:
@@ -392,32 +397,63 @@ final class ServiceProvider: NSObject {
 
 // MARK: - Search
 
+/// Search where the text came from:
+///   Teams → Teams search (⌘E), WeChat → WeChat search (⌘F), everything else → Google in Chrome.
+/// Typing into another app needs the Accessibility permission. Without it (e.g. a company Mac) the
+/// app is brought to the front and the keyword is put on the clipboard (no popup; explained in Settings).
 @MainActor
 enum Searcher {
-    static let teamsIDs = ["com.microsoft.teams2", "com.microsoft.teams"]
+    static let teamsIDs: Set<String> = ["com.microsoft.teams2", "com.microsoft.teams"]
+    static let wechatIDs: Set<String> = ["com.tencent.xinWeChat"]
+    static let chromeIDs = ["com.google.Chrome", "com.google.Chrome.beta", "com.google.Chrome.canary"]
+    private static let keyF: CGKeyCode = 3
 
-    static func search(_ raw: String) {
+    static func search(_ raw: String, source bundleID: String?) {
         let q = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !q.isEmpty else { return }
-        if Prefs.searchMode == .teams,
-           let appURL = teamsIDs.lazy.compactMap({ NSWorkspace.shared.urlForApplication(withBundleIdentifier: $0) }).first {
-            let cfg = NSWorkspace.OpenConfiguration()
-            cfg.activates = true
-            NSWorkspace.shared.openApplication(at: appURL, configuration: cfg) { _, _ in
-                Task { @MainActor in
-                    try? await Task.sleep(nanoseconds: 700_000_000)
-                    KeySender.press(KeyCode.e, flags: .maskCommand)   // Teams: ⌘E = 検索
-                    try? await Task.sleep(nanoseconds: 350_000_000)
-                    await ClipboardBridge.paste(q)
-                    KeySender.press(KeyCode.returnKey, flags: [])
-                }
-            }
+        if let id = bundleID, teamsIDs.contains(id) {
+            searchInApp(id, q, key: KeyCode.e, pressReturn: true)
+        } else if let id = bundleID, wechatIDs.contains(id) {
+            searchInApp(id, q, key: keyF, pressReturn: false)
+        } else {
+            searchWeb(q)
+        }
+    }
+
+    private static func searchInApp(_ bundleID: String, _ q: String, key: CGKeyCode, pressReturn: Bool) {
+        guard let appURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleID) else {
+            searchWeb(q)
             return
         }
+        let cfg = NSWorkspace.OpenConfiguration()
+        cfg.activates = true
+        NSWorkspace.shared.openApplication(at: appURL, configuration: cfg) { _, _ in
+            Task { @MainActor in
+                try? await Task.sleep(nanoseconds: 700_000_000)
+                if AX.isTrusted {
+                    KeySender.press(key, flags: .maskCommand)
+                    try? await Task.sleep(nanoseconds: 350_000_000)
+                    await ClipboardBridge.paste(q)
+                    if pressReturn { KeySender.press(KeyCode.returnKey, flags: []) }
+                } else {
+                    // No permission to type into other apps: leave the keyword on the clipboard.
+                    ClipboardBridge.setString(q)
+                }
+            }
+        }
+    }
+
+    /// Google (or the URL template in Settings) in Chrome; default browser if Chrome is not installed.
+    private static func searchWeb(_ q: String) {
         var allowed = CharacterSet.urlQueryAllowed
         allowed.remove(charactersIn: "&+=?#")
         let encoded = q.addingPercentEncoding(withAllowedCharacters: allowed) ?? q
-        if let url = URL(string: Prefs.searchURL.replacingOccurrences(of: "{q}", with: encoded)) {
+        guard let url = URL(string: Prefs.searchURL.replacingOccurrences(of: "{q}", with: encoded)) else { return }
+        if let chrome = chromeIDs.lazy.compactMap({ NSWorkspace.shared.urlForApplication(withBundleIdentifier: $0) }).first {
+            let cfg = NSWorkspace.OpenConfiguration()
+            cfg.activates = true
+            NSWorkspace.shared.open([url], withApplicationAt: chrome, configuration: cfg)
+        } else {
             NSWorkspace.shared.open(url)
         }
     }

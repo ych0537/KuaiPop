@@ -240,16 +240,11 @@ struct GeneralPage: View {
 
             VStack(alignment: .leading, spacing: 8) {
                 SectionTitle(L("検索ボタン"))
-                Picker("", selection: $searchMode) {
-                    Text(L("Microsoft Teams で検索")).tag(SearchMode.teams.rawValue)
-                    Text(L("Web（URL テンプレート）で検索")).tag(SearchMode.url.rawValue)
-                }
-                .pickerStyle(.radioGroup)
-                .labelsHidden()
+                Hint(L("Teams で選んだテキストは Teams で、WeChat で選んだテキストは WeChat で検索します。それ以外は Chrome で Google 検索します（Chrome がなければ既定のブラウザ）。"))
+                Text(L("Web 検索の URL（{q} が選択テキストに置き換わります）")).font(.system(size: 12, weight: .semibold)).padding(.top, 4)
                 TextField("https://www.google.com/search?q={q}", text: $searchURL)
                     .textFieldStyle(.roundedBorder)
-                    .disabled(searchMode != SearchMode.url.rawValue)
-                Hint(L("Teams がない場合は URL テンプレートで検索します。{q} が選択テキストに置き換わります。"))
+                Hint(L("アクセシビリティの権限がない場合（会社の Mac など）は、Teams・WeChat を前面に出してキーワードをクリップボードにコピーするだけです。続けて ⌘E（WeChat は ⌘F）→ ⌘V で検索してください。"))
             }
 
             Toggle(L("ログイン時に起動"), isOn: $launchAtLogin)

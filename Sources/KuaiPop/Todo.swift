@@ -34,7 +34,11 @@ struct TodoItem: Codable, Identifiable, Equatable {
     var windowTitle: String?
     var url: String?
     var pageTitle: String?
+    /// Deep link to the exact message (e.g. Teams「リンクをコピー」). Long; never shown raw in the UI.
+    var messageLink: String?
     var pending = false
+
+    var isTeams: Bool { TeamsLink.bundleIDs.contains(bundleID ?? "") }
 
     static func fallbackTitle(_ text: String) -> String {
         let line = text.split(whereSeparator: \.isNewline)
@@ -43,25 +47,30 @@ struct TodoItem: Codable, Identifiable, Equatable {
         return line.count > 40 ? String(line.prefix(40)) + "…" : line
     }
 
-    /// "チャット · 佐藤 健" / "Web · docs.aws.amazon.com" / "Xcode"
+    static let fixedNames: [String: String] = [
+        "com.tencent.xinWeChat": "WeChat",
+        "com.microsoft.teams2": "Teams",
+        "com.microsoft.teams": "Teams",
+    ]
+
+    /// Short app name only: "WeChat", "Teams", "Chrome", "Xcode" …
     var sourceLabel: String {
-        switch kind {
-        case .web:
-            if let u = url, let host = URL(string: u)?.host { return "Web · \(host)" }
-            return "Web · " + (appName ?? L("ブラウザ"))
-        case .chat:
-            var name = windowTitle?.trimmingCharacters(in: .whitespaces) ?? ""
-            if let app = appName {
-                for sep in [" | \(app)", " - \(app)", " — \(app)"] {
-                    name = name.replacingOccurrences(of: sep, with: "")
-                }
+        // Fixed names for some apps (WeChat shows as「微信」on a Chinese system)
+        if let id = bundleID, let fixed = Self.fixedNames[id] { return fixed }
+        var name = (appName ?? "").trimmingCharacters(in: .whitespaces)
+        if name.isEmpty {
+            switch kind {
+            case .web: return L("ブラウザ")
+            case .chat: return L("チャット")
+            case .app: return L("アプリ")
             }
-            if name.isEmpty { name = appName ?? "" }
-            if name.count > 28 { name = String(name.prefix(28)) + "…" }
-            return L("チャット") + " · \(name)"
-        case .app:
-            return appName ?? L("アプリ")
         }
+        // "Microsoft Teams" → "Teams", "Google Chrome" → "Chrome", "Microsoft Outlook" → "Outlook"
+        for prefix in ["Microsoft ", "Google "] where name.hasPrefix(prefix) && name.count > prefix.count {
+            name = String(name.dropFirst(prefix.count))
+        }
+        if name.hasSuffix(" (work or school)") { name = String(name.dropLast(" (work or school)".count)) }
+        return name.count > 20 ? String(name.prefix(20)) + "…" : name
     }
 }
 
@@ -142,6 +151,25 @@ final class TodoStore: ObservableObject {
         save()
     }
 
+    func setLink(_ id: UUID, _ link: String?) {
+        update(id) { $0.messageLink = link }
+    }
+
+    /// Called for every clipboard change. If a Teams message link is copied, attach it to the
+    /// most recently added ToDo — but only when that ToDo came from Teams and has no link yet.
+    /// No time limit; once another ToDo has been added after it, it is never auto-linked again.
+    /// (Teams' ⌘C carries no message ID — checked: only `data-teams="true"` and `/v2/` — so
+    /// 「リンクをコピー」is the only way to get the exact message.)
+    @discardableResult
+    func attachCopiedTeamsLink(_ text: String) -> Bool {
+        guard let link = TeamsLink.extract(from: text),
+              let latest = items.max(by: { $0.createdAt < $1.createdAt }),
+              latest.isTeams, latest.messageLink == nil, !latest.done
+        else { return false }
+        setLink(latest.id, link)
+        return true
+    }
+
     func toggle(_ id: UUID) {
         update(id) { t in
             t.done.toggle()
@@ -157,6 +185,54 @@ final class TodoStore: ObservableObject {
     func clearCompleted() {
         items.removeAll { $0.done }
         save()
+    }
+}
+
+// MARK: - Message links (Teams etc.)
+
+enum TeamsLink {
+    static let bundleIDs: Set<String> = ["com.microsoft.teams2", "com.microsoft.teams"]
+    private static let pattern = try! NSRegularExpression(
+        pattern: #"https://teams\.(?:microsoft\.com|cloud\.microsoft)/l/[^\s"'<>]+"#)
+    private static let anyURL = try! NSRegularExpression(pattern: #"https?://[^\s"'<>]+"#)
+
+    /// First Teams deep link (https://teams.microsoft.com/l/…) in the text.
+    static func extract(from text: String) -> String? {
+        let range = NSRange(text.startIndex..., in: text)
+        guard let m = pattern.firstMatch(in: text, range: range), let r = Range(m.range, in: text) else { return nil }
+        return String(text[r])
+    }
+
+    /// Teams link, or any http(s) URL as a fallback (for pasting a link manually).
+    static func extractAnyLink(from text: String) -> String? {
+        if let t = extract(from: text) { return t }
+        let range = NSRange(text.startIndex..., in: text)
+        guard let m = anyURL.firstMatch(in: text, range: range), let r = Range(m.range, in: text) else { return nil }
+        return String(text[r])
+    }
+
+    static func isTeams(_ link: String) -> Bool { extract(from: link) != nil }
+
+    /// Short label for the UI instead of the very long URL.
+    static func label(_ link: String) -> String {
+        if isTeams(link) {
+            if link.contains("/l/message/") { return L("Teams のメッセージ") }
+            return L("Teams のリンク")
+        }
+        return URL(string: link)?.host ?? L("リンク")
+    }
+
+    /// Opens Teams links directly in the desktop app (msteams:), falling back to the browser.
+    @MainActor
+    static func open(_ link: String) {
+        if isTeams(link), let r = link.range(of: "/l/") {
+            let app = "msteams:" + link[r.lowerBound...]
+            if let u = URL(string: app), NSWorkspace.shared.urlForApplication(toOpen: u) != nil,
+               NSWorkspace.shared.open(u) {
+                return
+            }
+        }
+        if let u = URL(string: link) { NSWorkspace.shared.open(u) }
     }
 }
 

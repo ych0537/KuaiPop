@@ -7,8 +7,11 @@ import AppKit
 /// clipboard updates with the same text within `window` seconds as a "double copy".
 @MainActor
 final class DoubleCopyTrigger {
-    /// Called with the copied text.
+    /// Called with the copied text on a double ⌘C (only when `doubleCopyEnabled`).
     var onTrigger: ((String) -> Void)?
+    /// Called with every text copied to the clipboard by another app (e.g. a Teams message link).
+    var onCopy: ((String) -> Void)?
+    var doubleCopyEnabled = true
 
     /// Max time between the two copies.
     private let window: TimeInterval = 0.7
@@ -60,6 +63,9 @@ final class DoubleCopyTrigger {
             firstCopy = nil
             return
         }
+
+        onCopy?(text)
+        guard doubleCopyEnabled else { firstCopy = nil; return }
 
         let now = Date()
         if let first = firstCopy, now.timeIntervalSince(first.time) <= window, first.text == text {

@@ -162,7 +162,8 @@ struct TodoListView: View {
             onToggle: { store.toggle(item.id) },
             onTap: { expanded = expanded == item.id ? nil : item.id },
             onOpenSource: { openSource(item) },
-            onDelete: { store.delete(item.id) })
+            onDelete: { store.delete(item.id) },
+            onSetLink: { store.setLink(item.id, $0) })
     }
 
     private var header: some View {
@@ -240,8 +241,10 @@ struct TodoRow: View {
     let onTap: () -> Void
     let onOpenSource: () -> Void
     let onDelete: () -> Void
+    let onSetLink: (String?) -> Void
 
     @State private var translation: String?
+    @State private var noLinkOnClipboard = false
     @State private var translating = false
 
     private var isToday: Bool {
@@ -284,20 +287,24 @@ struct TodoRow: View {
         }
     }
 
+    /// Source first, then the due date. No due date → nothing is shown (keeps rows compact).
     private var meta: some View {
         HStack(spacing: 8) {
-            if item.due != nil {
-                Text(DueFormat.label(item))
-                    .fontWeight(isToday ? .semibold : .regular)
-                    .foregroundStyle(isToday ? Theme.todayDue : Theme.accentStrong)
-            } else {
-                Text(L("期限なし"))
-            }
             HStack(spacing: 4) {
                 if item.kind == .web {
                     Image(systemName: "globe").font(.system(size: 10))
                 }
                 Text(item.sourceLabel).lineLimit(1)
+                if item.messageLink != nil {
+                    Image(systemName: "link").font(.system(size: 10)).foregroundStyle(Theme.accent)
+                        .help(L("Teams のメッセージ"))
+                }
+            }
+            if item.due != nil {
+                Text(DueFormat.label(item))
+                    .fontWeight(isToday ? .semibold : .regular)
+                    .foregroundStyle(isToday ? Theme.todayDue : Theme.accentStrong)
+                    .fixedSize()
             }
         }
         .font(.system(size: 12))
@@ -324,6 +331,7 @@ struct TodoRow: View {
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
+            linkRow
             HStack(spacing: 12) {
                 Button(L("元のメッセージへ"), action: onOpenSource)
                 Button(translating ? L("翻訳中…") : L("原文を翻訳")) { translate() }
@@ -335,6 +343,50 @@ struct TodoRow: View {
             .font(.system(size: 12))
         }
         .padding(.top, 2)
+    }
+
+    /// Short label instead of the (very long) URL; paste / remove.
+    @ViewBuilder private var linkRow: some View {
+        if let link = item.messageLink {
+            HStack(spacing: 6) {
+                Image(systemName: "link").font(.system(size: 11)).foregroundStyle(Theme.accent)
+                Button(TeamsLink.label(link)) { TeamsLink.open(link) }
+                    .buttonStyle(.link)
+                    .help(link.count > 80 ? String(link.prefix(80)) + "…" : link)
+                Spacer()
+                Button(L("リンクを削除")) { onSetLink(nil) }
+                    .buttonStyle(.link)
+                    .foregroundStyle(Theme.secondary)
+            }
+            .font(.system(size: 12))
+        } else {
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 6) {
+                    Image(systemName: "link.badge.plus").font(.system(size: 11)).foregroundStyle(Theme.secondary)
+                    Button(L("リンクを貼り付け")) { pasteLink() }
+                        .buttonStyle(.link)
+                    if noLinkOnClipboard {
+                        Text(L("クリップボードにリンクがありません")).foregroundStyle(Theme.todayDue)
+                    }
+                }
+                if item.isTeams {
+                    Text(L("Teams でメッセージを右クリック ›「リンクをコピー」すると、この ToDo に自動で付きます"))
+                        .foregroundStyle(Theme.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            .font(.system(size: 12))
+        }
+    }
+
+    private func pasteLink() {
+        let text = NSPasteboard.general.string(forType: .string) ?? ""
+        if let link = TeamsLink.extractAnyLink(from: text) {
+            noLinkOnClipboard = false
+            onSetLink(link)
+        } else {
+            noLinkOnClipboard = true
+        }
     }
 
     private func translate() {
