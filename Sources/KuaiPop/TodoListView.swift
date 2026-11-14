@@ -243,9 +243,10 @@ struct TodoRow: View {
     let onDelete: () -> Void
     let onSetLink: (String?) -> Void
 
-    @State private var translation: String?
     @State private var noLinkOnClipboard = false
-    @State private var translating = false
+
+    /// 「元のメッセージへ」works only when we know where to go (message link or web page URL).
+    private var canOpenSource: Bool { item.messageLink != nil || item.url != nil }
 
     private var isToday: Bool {
         let g = DueGroup.of(item)
@@ -281,7 +282,11 @@ struct TodoRow: View {
         .onTapGesture(perform: onTap)
         .contextMenu {
             Button(L("原文をコピー")) { ClipboardBridge.setString(item.sourceText) }
-            Button(L("元のメッセージへ"), action: onOpenSource)
+            Button(L("元のメッセージへ"), action: onOpenSource).disabled(!canOpenSource)
+            Button(L("リンクを貼り付け")) { pasteLink() }
+            if item.messageLink != nil {
+                Button(L("リンクを削除")) { onSetLink(nil) }
+            }
             Divider()
             Button(L("削除"), action: onDelete)
         }
@@ -295,10 +300,6 @@ struct TodoRow: View {
                     Image(systemName: "globe").font(.system(size: 10))
                 }
                 Text(item.sourceLabel).lineLimit(1)
-                if item.messageLink != nil {
-                    Image(systemName: "link").font(.system(size: 10)).foregroundStyle(Theme.accent)
-                        .help(L("Teams のメッセージ"))
-                }
             }
             if item.due != nil {
                 Text(DueFormat.label(item))
@@ -311,6 +312,7 @@ struct TodoRow: View {
         .foregroundStyle(Theme.secondary)
     }
 
+    /// Original text + one row of icon actions: [open source] [paste link] ……… [delete]
     private var detail: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text("「\(item.sourceText)」")
@@ -323,60 +325,24 @@ struct TodoRow: View {
                 .padding(8)
                 .background(RoundedRectangle(cornerRadius: 6).fill(Theme.surface))
                 .overlay(RoundedRectangle(cornerRadius: 6).stroke(Theme.border, lineWidth: 1))
-            if let t = translation {
-                HStack(alignment: .top, spacing: 6) {
-                    Image(systemName: "translate").font(.system(size: 11)).foregroundStyle(Theme.accent)
-                    Text(t).font(.system(size: 12)).foregroundStyle(Theme.resultText)
-                        .textSelection(.enabled)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-            }
-            linkRow
-            HStack(spacing: 12) {
-                Button(L("元のメッセージへ"), action: onOpenSource)
-                Button(translating ? L("翻訳中…") : L("原文を翻訳")) { translate() }
-                    .disabled(translating)
+            HStack(spacing: 4) {
+                RowIconButton(symbol: "arrowshape.turn.up.backward.fill", label: L("元のメッセージへ"),
+                              tint: Theme.accent, enabled: canOpenSource, prominent: true, action: onOpenSource)
+                RowIconButton(symbol: noLinkOnClipboard ? "exclamationmark.circle" : "link.badge.plus",
+                              label: noLinkOnClipboard ? L("クリップボードにリンクがありません") : pasteHelp,
+                              tint: noLinkOnClipboard ? Theme.todayDue : Theme.secondary,
+                              enabled: true, action: pasteLink)
                 Spacer()
-                Button(L("削除"), action: onDelete)
+                RowIconButton(symbol: "trash", label: L("削除"), tint: Theme.secondary, enabled: true, action: onDelete)
             }
-            .buttonStyle(.link)
-            .font(.system(size: 12))
         }
         .padding(.top, 2)
     }
 
-    /// Short label instead of the (very long) URL; paste / remove.
-    @ViewBuilder private var linkRow: some View {
-        if let link = item.messageLink {
-            HStack(spacing: 6) {
-                Image(systemName: "link").font(.system(size: 11)).foregroundStyle(Theme.accent)
-                Button(TeamsLink.label(link)) { TeamsLink.open(link) }
-                    .buttonStyle(.link)
-                    .help(link.count > 80 ? String(link.prefix(80)) + "…" : link)
-                Spacer()
-                Button(L("リンクを削除")) { onSetLink(nil) }
-                    .buttonStyle(.link)
-                    .foregroundStyle(Theme.secondary)
-            }
-            .font(.system(size: 12))
-        } else {
-            VStack(alignment: .leading, spacing: 4) {
-                HStack(spacing: 6) {
-                    Image(systemName: "link.badge.plus").font(.system(size: 11)).foregroundStyle(Theme.secondary)
-                    Button(L("リンクを貼り付け")) { pasteLink() }
-                        .buttonStyle(.link)
-                    if noLinkOnClipboard {
-                        Text(L("クリップボードにリンクがありません")).foregroundStyle(Theme.todayDue)
-                    }
-                }
-                if item.isTeams {
-                    Text(L("Teams でメッセージを右クリック ›「リンクをコピー」すると、この ToDo に自動で付きます"))
-                        .foregroundStyle(Theme.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-            }
-            .font(.system(size: 12))
-        }
+    private var pasteHelp: String {
+        item.isTeams
+            ? L("リンクを貼り付け") + "（" + L("Teams でメッセージを右クリック ›「リンクをコピー」すると、この ToDo に自動で付きます") + "）"
+            : L("リンクを貼り付け")
     }
 
     private func pasteLink() {
@@ -386,19 +352,52 @@ struct TodoRow: View {
             onSetLink(link)
         } else {
             noLinkOnClipboard = true
+            Task { @MainActor in
+                try? await Task.sleep(nanoseconds: 2_000_000_000)
+                noLinkOnClipboard = false
+            }
         }
     }
+}
 
-    private func translate() {
-        translating = true
-        let text = item.sourceText
-        Task { @MainActor in
-            do {
-                translation = try await AIService.translate(text)
-            } catch {
-                translation = L("翻訳に失敗しました: %@", error.localizedDescription)
+/// Small icon-only button used in the ToDo detail row.
+/// `prominent`: filled accent badge when enabled (the main action), pale outline when disabled.
+struct RowIconButton: View {
+    let symbol: String
+    let label: String
+    let tint: Color
+    let enabled: Bool
+    var prominent = false
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: symbol)
+                .font(.system(size: prominent ? 12 : 14, weight: prominent ? .semibold : .regular))
+                .frame(width: prominent ? 34 : 28, height: 26)
+                .background(background)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(foreground)
+        .disabled(!enabled)
+        .help(label)
+        .accessibilityLabel(label)
+    }
+
+    private var foreground: Color {
+        if !enabled { return Theme.secondary.opacity(0.4) }
+        return prominent ? Theme.onAccent : tint
+    }
+
+    @ViewBuilder private var background: some View {
+        if prominent {
+            if enabled {
+                RoundedRectangle(cornerRadius: 7, style: .continuous).fill(tint)
+            } else {
+                RoundedRectangle(cornerRadius: 7, style: .continuous)
+                    .stroke(Theme.secondary.opacity(0.3), lineWidth: 1)
             }
-            translating = false
         }
     }
 }
