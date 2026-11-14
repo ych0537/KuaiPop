@@ -326,8 +326,8 @@ struct TodoRow: View {
                 .background(RoundedRectangle(cornerRadius: 6).fill(Theme.surface))
                 .overlay(RoundedRectangle(cornerRadius: 6).stroke(Theme.border, lineWidth: 1))
             HStack(spacing: 4) {
-                RowIconButton(symbol: "arrowshape.turn.up.backward.fill", label: L("元のメッセージへ"),
-                              tint: Theme.accent, enabled: canOpenSource, prominent: true, action: onOpenSource)
+                RowIconButton(symbol: "arrow.up.forward.square", label: L("元のメッセージへ"),
+                              tint: Theme.accent, enabled: canOpenSource, action: onOpenSource)
                 RowIconButton(symbol: noLinkOnClipboard ? "exclamationmark.circle" : "link.badge.plus",
                               label: noLinkOnClipboard ? L("クリップボードにリンクがありません") : pasteHelp,
                               tint: noLinkOnClipboard ? Theme.todayDue : Theme.secondary,
